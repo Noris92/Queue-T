@@ -1,0 +1,6 @@
+*.log
+*.luac
+autoqueue-install-state.json
+autoqueue.lua.autoqueue-backup
+.DS_Store
+Thumbs.db
