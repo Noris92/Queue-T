@@ -1,14 +1,14 @@
 # Queue-T for VLC
 
 Automatically add later episodes from the current video's season folder,
-followed by episodes from its matching previous season folder. Open an episode
+followed by episodes from its matching next season folder. Open an episode
 normally; Queue-T finds similarly named video files and queues them without
 interrupting playback.
 
 ## Features
 
 - Queues remaining episodes in the current season, then episodes from the
-  best-matching previous season folder (such as `Show S01` / `Show S02` or
+  best-matching next season folder (such as `Show S01` / `Show S02` or
   `Show Season 1` / `Show Season 2`).
 - Supports common video formats; by default, queued files must use the same
   extension as the currently playing episode.
@@ -35,7 +35,7 @@ interrupting playback.
    ```
 
 4. Start VLC and open an episode. Later matching episodes should appear in the
-   playlist, followed by episodes from the matching previous season folder.
+   playlist, followed by episodes from the matching next season folder.
 
 The installer copies the interface to the current Windows user's VLC profile
 and enables it when VLC starts. These files and settings remain in place across
@@ -72,11 +72,14 @@ Queue-T replaces numbers in filenames with a placeholder when comparing
 names, then compares their shared prefix and suffix. Candidates must meet the
 similarity threshold configured near the top of `autoqueue.lua` and sort after
 the currently playing file by their numbers. When the current episode is inside
-a season-named folder, Queue-T queues later episodes in that folder first, then
-queues episodes from the best-matching lower-numbered sibling season folder.
-Season folder names can include a series name and end in `S01`, `Season 1`, or
-similar; matching ignores capitalization. Files in the previous season are
-queued in episode-number order, after the remaining current-season episodes.
+a season folder, Queue-T queues later episodes in that folder first, then
+queues episodes from the best-matching higher-numbered sibling season folder.
+Season folder names can include a series name and release details around a
+season marker such as `S01` or `Season 1`; matching ignores capitalization.
+All supported video files with the current episode's extension in the selected
+next-season folder are queued in episode-number order, even when their episode
+titles or release tags differ. They are queued after the remaining current-season
+episodes.
 
 Edit these settings at the top of the script if needed:
 

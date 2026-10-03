@@ -47,19 +47,40 @@ local function numbers_of(value)
   return numbers
 end
 
+local function find_season_marker(name, pattern)
+  local search_from = 1
+  while true do
+    local start_position, end_position, number = name:find(pattern, search_from)
+    if not start_position then return nil end
+
+    local previous_character = name:sub(start_position - 1, start_position - 1)
+    local next_character = name:sub(end_position + 1, end_position + 1)
+    local left_boundary = start_position == 1
+        or previous_character:match("[%s%._%-]")
+    local right_boundary = end_position == #name
+        or next_character:match("[%s%._%-]")
+    if left_boundary and right_boundary then
+      return start_position, end_position, tonumber(number)
+    end
+    search_from = start_position + 1
+  end
+end
+
 local function season_folder_info(name)
   local lowered_name = name:lower()
-  local series_name, number = lowered_name:match(
-      "^(.-)[%s%._%-]*season[%s%._%-]*(%d+)$")
+  local start_position, end_position, number = find_season_marker(
+      lowered_name, "season[%s%._%-]*(%d+)")
   if not number then
-    series_name, number = lowered_name:match(
-        "^(.-)[%s%._%-]*s[%s%._%-]*(%d+)$")
+    start_position, end_position, number = find_season_marker(
+        lowered_name, "s[%s%._%-]*(%d+)")
   end
   if not number then return nil end
 
+  local series_name = lowered_name:sub(1, start_position - 1) .. " "
+      .. lowered_name:sub(end_position + 1)
   series_name = series_name:gsub("[%._%-]+", " ")
       :gsub("%s+", " "):match("^%s*(.-)%s*$")
-  return tonumber(number), series_name
+  return number, series_name
 end
 
 local function episode_less(first, second)
@@ -208,11 +229,11 @@ local function handle(uri)
       local best_match
       for _, folder_name in ipairs(sibling_names) do
         local season, series_name = season_folder_info(folder_name)
-        if season and season < current_season then
+        if season and season > current_season then
           local score = similarity_score(current_series, series_name)
           if score >= SIMILARITY
               and (not best_match or score > best_match.score
-                  or (score == best_match.score and season > best_match.season)
+                  or (score == best_match.score and season < best_match.season)
                   or (score == best_match.score and season == best_match.season
                       and folder_name:lower() < best_match.name:lower())) then
             best_match = {
@@ -235,13 +256,13 @@ local function handle(uri)
             entries = season_entries,
             is_current = false,
           }
-          log("matched previous season folder: " .. best_match.name)
+          log("matched next season folder: " .. best_match.name)
         else
           log("could not read matched season folder " .. season_directory ..
               ": " .. season_error)
         end
       else
-        log("no matching previous season folder found")
+        log("no matching next season folder found")
       end
     end
   end
@@ -256,7 +277,7 @@ local function handle(uri)
           and VIDEO_EXTENSIONS[candidate_extension]
           and (not SAME_EXTENSION_ONLY or candidate_extension == extension) then
         video_count = video_count + 1
-        if similar(base, candidate_base) then
+        if not season_folder.is_current or similar(base, candidate_base) then
           similar_count = similar_count + 1
           if not season_folder.is_current or episode_less(base, candidate_base) then
             later_episodes[#later_episodes + 1] = {
