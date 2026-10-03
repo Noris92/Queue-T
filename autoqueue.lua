@@ -47,10 +47,19 @@ local function numbers_of(value)
   return numbers
 end
 
-local function season_number_from_directory(name)
-  local number = name:lower():match("^season%s*(%d+)")
-      or name:lower():match("^s(%d+)$")
-  return number and tonumber(number) or nil
+local function season_folder_info(name)
+  local lowered_name = name:lower()
+  local series_name, number = lowered_name:match(
+      "^(.-)[%s%._%-]*season[%s%._%-]*(%d+)$")
+  if not number then
+    series_name, number = lowered_name:match(
+        "^(.-)[%s%._%-]*s[%s%._%-]*(%d+)$")
+  end
+  if not number then return nil end
+
+  series_name = series_name:gsub("[%._%-]+", " ")
+      :gsub("%s+", " "):match("^%s*(.-)%s*$")
+  return tonumber(number), series_name
 end
 
 local function episode_less(first, second)
@@ -74,10 +83,10 @@ local function template(value)
   return (value:lower():gsub("%d+", "#"):gsub("%s+", " "))
 end
 
-local function similar(first, second)
+local function similarity_score(first, second)
   first = template(first)
   second = template(second)
-  if first == second then return true end
+  if first == second then return 1 end
 
   local common_length = math.min(#first, #second)
   local prefix_length = 0
@@ -92,7 +101,11 @@ local function similar(first, second)
     suffix_length = suffix_length + 1
   end
 
-  return (prefix_length + suffix_length) / math.max(#first, #second) >= SIMILARITY
+  return (prefix_length + suffix_length) / math.max(#first, #second)
+end
+
+local function similar(first, second)
+  return similarity_score(first, second) >= SIMILARITY
 end
 
 local function list_directory(directory)
@@ -175,13 +188,15 @@ local function handle(uri)
   local trimmed_directory = directory:gsub("[/\\]+$", "")
   local parent_directory = trimmed_directory:match("^(.*)[/\\][^/\\]+$")
   local parent_uri, encoded_folder_name = directory_uri:match("^(.*)/([^/]*)/$")
-  local current_season = season_number_from_directory(uri_decode(encoded_folder_name or ""))
+  local current_season, current_series = season_folder_info(
+      uri_decode(encoded_folder_name or ""))
   local season_folders = {
     {
       directory = directory,
       uri = directory_uri,
       season = current_season,
       entries = entries,
+      is_current = true,
     },
   }
 
@@ -190,22 +205,43 @@ local function handle(uri)
     if not sibling_names then
       log("could not inspect sibling season folders: " .. parent_error)
     else
+      local best_match
       for _, folder_name in ipairs(sibling_names) do
-        local season = season_number_from_directory(folder_name)
-        if season and season > current_season then
-          local season_directory = parent_directory .. "/" .. folder_name
-          local season_entries, season_error = list_directory(season_directory)
-          if season_entries then
-            season_folders[#season_folders + 1] = {
-              directory = season_directory,
-              uri = parent_uri .. "/" .. uri_encode(folder_name) .. "/",
+        local season, series_name = season_folder_info(folder_name)
+        if season and season < current_season then
+          local score = similarity_score(current_series, series_name)
+          if score >= SIMILARITY
+              and (not best_match or score > best_match.score
+                  or (score == best_match.score and season > best_match.season)
+                  or (score == best_match.score and season == best_match.season
+                      and folder_name:lower() < best_match.name:lower())) then
+            best_match = {
+              name = folder_name,
               season = season,
-              entries = season_entries,
+              score = score,
             }
-          else
-            log("could not read season folder " .. season_directory .. ": " .. season_error)
           end
         end
+      end
+
+      if best_match then
+        local season_directory = parent_directory .. "/" .. best_match.name
+        local season_entries, season_error = list_directory(season_directory)
+        if season_entries then
+          season_folders[#season_folders + 1] = {
+            directory = season_directory,
+            uri = parent_uri .. "/" .. uri_encode(best_match.name) .. "/",
+            season = best_match.season,
+            entries = season_entries,
+            is_current = false,
+          }
+          log("matched previous season folder: " .. best_match.name)
+        else
+          log("could not read matched season folder " .. season_directory ..
+              ": " .. season_error)
+        end
+      else
+        log("no matching previous season folder found")
       end
     end
   end
@@ -222,12 +258,11 @@ local function handle(uri)
         video_count = video_count + 1
         if similar(base, candidate_base) then
           similar_count = similar_count + 1
-          if (current_season and season_folder.season > current_season)
-              or episode_less(base, candidate_base) then
+          if not season_folder.is_current or episode_less(base, candidate_base) then
             later_episodes[#later_episodes + 1] = {
               file = filename,
               base = candidate_base,
-              season = season_folder.season,
+              batch = season_folder.is_current and 1 or 2,
               uri = season_folder.uri,
             }
           end
@@ -237,8 +272,8 @@ local function handle(uri)
   end
 
   table.sort(later_episodes, function(first, second)
-    if first.season ~= second.season then
-      return first.season < second.season
+    if first.batch ~= second.batch then
+      return first.batch < second.batch
     end
     return episode_less(first.base, second.base)
   end)
