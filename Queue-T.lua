@@ -1,8 +1,9 @@
 --[[
 Queue-T for VLC
 Automatically queues later episodes from the current video's folder.
+Also provides a callback module for LuaLoop while retaining standalone mode.
 
-Copyright (c) 2026 AutoQueue contributors
+Copyright (c) 2026 Queue-T contributors
 Licensed under the MIT License. See LICENSE.
 ]]
 
@@ -336,6 +337,13 @@ local function handle(uri)
   end
 end
 
+local function on_new_item(uri)
+  handle(uri)
+end
+
+local module = { on_new_item = on_new_item }
+if LUALOOP_LAUNCHER then return module end
+
 log("Queue-T " .. VERSION .. " loaded")
 local last_uri
 while true do
@@ -346,7 +354,7 @@ while true do
     end)
     if uri_ok and uri and uri ~= last_uri then
       last_uri = uri
-      local handled, handle_error = pcall(handle, uri)
+      local handled, handle_error = pcall(module.on_new_item, uri)
       if not handled then
         log("ERROR: " .. tostring(handle_error))
       end

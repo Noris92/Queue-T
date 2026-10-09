@@ -4,3 +4,5 @@ autoqueue-install-state.json
 autoqueue.lua.autoqueue-backup
 .DS_Store
 Thumbs.db
+Queue-T-install-state.json
+Queue-T.lua.Queue-T-backup

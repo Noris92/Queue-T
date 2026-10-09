@@ -54,7 +54,7 @@ function Restore-OptionLine {
     if ($indices.Count -eq 0) { return }
 
     if ($Name -eq 'lua-intf') {
-        if ($Lines[$indices[0]] -notmatch '^\s*lua-intf\s*=\s*autoqueue\s*$') {
+        if ($Lines[$indices[0]] -notmatch '^\s*lua-intf\s*=\s*Queue-T\s*$') {
             return
         }
     }
@@ -108,18 +108,18 @@ function Restore-OptionLine {
 
 $processes = @(Get-Process -Name 'vlc' -ErrorAction SilentlyContinue)
 if ($processes.Count -gt 0) {
-    throw 'Close VLC completely before uninstalling Queue-T, then run this script again.'
+    throw 'Close VLC completely before running uninstallQueue-T.ps1, then run this script again.'
 }
 
 $profileRoot = Join-Path $env:APPDATA 'vlc'
 $interfaceDirectory = Join-Path $profileRoot 'lua\intf'
-$installedScript = Join-Path $interfaceDirectory 'autoqueue.lua'
-$statePath = Join-Path $interfaceDirectory 'autoqueue-install-state.json'
-$backupScript = Join-Path $interfaceDirectory 'autoqueue.lua.autoqueue-backup'
+$installedScript = Join-Path $interfaceDirectory 'Queue-T.lua'
+$statePath = Join-Path $interfaceDirectory 'Queue-T-install-state.json'
+$backupScript = Join-Path $interfaceDirectory 'Queue-T.lua.Queue-T-backup'
 $configuration = Join-Path $profileRoot 'vlcrc'
 
 if (-not (Test-Path -LiteralPath $statePath -PathType Leaf)) {
-    throw 'Queue-T installer state was not found. For a manual installation, remove autoqueue.lua from VLC lua\intf and revert the VLC Lua interface settings yourself.'
+    throw 'Queue-T installer state was not found. For a manual installation, remove Queue-T.lua from VLC lua\intf and revert the VLC Lua interface settings yourself.'
 }
 
 $state = Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json

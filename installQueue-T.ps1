@@ -130,16 +130,16 @@ if ($processes.Count -gt 0) {
     throw 'Close VLC completely before installing Queue-T, then run this installer again.'
 }
 
-$source = Join-Path $PSScriptRoot 'autoqueue.lua'
+$source = Join-Path $PSScriptRoot 'Queue-T.lua'
 if (-not (Test-Path -LiteralPath $source -PathType Leaf)) {
-    throw 'autoqueue.lua was not found beside install.ps1. Extract the complete project before installing.'
+    throw 'Queue-T.lua was not found beside installQueue-T.ps1. Extract the complete project before installing.'
 }
 
 $profileRoot = Join-Path $env:APPDATA 'vlc'
 $interfaceDirectory = Join-Path $profileRoot 'lua\intf'
-$installedScript = Join-Path $interfaceDirectory 'autoqueue.lua'
-$statePath = Join-Path $interfaceDirectory 'autoqueue-install-state.json'
-$backupScript = Join-Path $interfaceDirectory 'autoqueue.lua.autoqueue-backup'
+$installedScript = Join-Path $interfaceDirectory 'Queue-T.lua'
+$statePath = Join-Path $interfaceDirectory 'Queue-T-install-state.json'
+$backupScript = Join-Path $interfaceDirectory 'Queue-T.lua.Queue-T-backup'
 $configuration = Join-Path $profileRoot 'vlcrc'
 
 New-Item -ItemType Directory -Path $interfaceDirectory -Force | Out-Null
@@ -156,7 +156,7 @@ else {
     }
 
     $originalLuaLine = Get-OptionLine -Lines $lines -Section 'lua' -Name 'lua-intf'
-    if ((Get-ActiveOptionValue -Line $originalLuaLine -Name 'lua-intf') -eq 'autoqueue') {
+    if ((Get-ActiveOptionValue -Line $originalLuaLine -Name 'lua-intf') -eq 'Queue-T') {
         $originalLuaLine = $null
     }
 
@@ -211,7 +211,7 @@ if (@($interfaces | Where-Object { $_ -ieq 'luaintf' }).Count -eq 0) {
 
 Set-OptionLine -Lines $lines -Section 'core' -Name 'extraintf' `
     -Value ($interfaces -join ',')
-Set-OptionLine -Lines $lines -Section 'lua' -Name 'lua-intf' -Value 'autoqueue'
+Set-OptionLine -Lines $lines -Section 'lua' -Name 'lua-intf' -Value 'Queue-T'
 
 $utf8WithoutBom = New-Object System.Text.UTF8Encoding($false)
 [System.IO.File]::WriteAllLines($configuration, $lines, $utf8WithoutBom)

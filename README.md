@@ -31,7 +31,7 @@ interrupting playback.
 3. Open PowerShell in the extracted folder and run:
 
    ```powershell
-   powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1
+   powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\installQueue-T.ps1
    ```
 
 4. Start VLC and open an episode. Later matching episodes should appear in the
@@ -45,14 +45,14 @@ of settings it changes in the VLC profile, not in this project.
 
 ## Manual installation
 
-Copy `autoqueue.lua` into VLC's `lua/intf` folder in your VLC user profile:
+Copy `Queue-T.lua` into VLC's `lua/intf` folder in your VLC user profile:
 
 - Windows: `%APPDATA%\vlc\lua\intf`
 - Linux: `~/.local/share/vlc/lua/intf`
 - macOS: `~/Library/Application Support/org.videolan.vlc/lua/intf`
 
 Create the folder if it does not exist. Enable the Lua interface by setting
-`lua-intf=autoqueue` in VLC's Lua settings and adding `luaintf` to the
+`lua-intf=Queue-T` in VLC's Lua settings and adding `luaintf` to the
 `extraintf` setting. In VLC 3, these settings are stored in the `vlcrc`
 configuration file. Restart VLC after changing them.
 
@@ -60,17 +60,54 @@ To uninstall a Windows installation made with the included installer, exit VLC
 and run:
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\uninstall.ps1
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\uninstallQueue-T.ps1
 ```
 
-Manual installations can be removed by deleting `autoqueue.lua` from the
+Manual installations can be removed by deleting `Queue-T.lua` from the
 interface folder and reverting the two VLC settings.
+
+## LuaLoop: run multiple plugins
+
+VLC accepts only one Lua interface name at a time. The `LuaLoop` package
+installs LuaLoop as that one interface and discovers every `*.lua` plugin in
+its `plugins` folder. The package includes Queue-T and AutoBinge, and
+additional compatible plugins can be added there.
+
+Run `LuaLoop\installlualoop.ps1` to install the launcher and its plugins, then
+restart VLC. It sets `lua-intf=lualoop` and enables the Lua interface. To
+remove it, close VLC and run `LuaLoop\uninstalllualoop.ps1`. The installer keeps
+backups of files it replaces and restores the previous VLC settings.
+
+The LuaLoop plugin directory is `%APPDATA%\vlc\lua\intf\plugins`. A plugin
+must return a Lua table containing one or both of these functions:
+
+```lua
+return {
+  on_new_item = function(uri)
+    -- Handle a newly selected media item.
+  end,
+  tick = function()
+    -- Run periodic work while an item is open.
+  end,
+}
+```
+
+The same plugin can retain standalone operation by returning that table only
+when `LUALOOP_LAUNCHER` is set, then running its own VLC loop otherwise.
+
+## Install AutoBinge on its own
+
+The `Autobinge` package has its own Windows installer. Close VLC and run
+`Autobinge\installautobinge.ps1`; it installs AutoBinge as the single Lua interface.
+Run `Autobinge\uninstallautobinge.ps1` to restore its prior VLC settings and files.
+Use the LuaLoop installer instead when you want AutoBinge and Queue-T
+running together.
 
 ## Filename matching
 
 Queue-T replaces numbers in filenames with a placeholder when comparing
 names, then compares their shared prefix and suffix. Candidates must meet the
-similarity threshold configured near the top of `autoqueue.lua` and sort after
+similarity threshold configured near the top of `Queue-T.lua` and sort after
 the currently playing file by their numbers. When the current episode is inside
 a season folder, Queue-T queues later episodes in that folder first, then
 queues episodes from the best-matching higher-numbered sibling season folder.
